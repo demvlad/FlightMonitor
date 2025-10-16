@@ -20,8 +20,10 @@
     "cordova-plugin-chrome-apps-common": "^1.0.7",
     "cordova-plugin-chrome-apps-sockets-udp": "^1.3.0",
     "cordova-plugin-device": "^3.0.0",
+    "cordova-plugin-geolocation": "^5.0.0",
     "cordova-plugin-network-information": "^3.0.0",
-    "cordova-plugin-secure-storage": "^3.0.2"
+    "cordova-plugin-secure-storage": "^3.0.2",
+    "cordova-plugin-statusbar": "^4.0.0"
   },
   "cordova": {
     "platforms": [
@@ -30,11 +32,14 @@
     ],
     "plugins": {
       "cordova-plugin-chrome-apps-sockets-udp": {},
+      "cordova-plugin-android-permissions": {},
+      "cordova-plugin-background-mode": {},
+      "cordova-plugin-geolocation": {
+        "GPS_REQUIRED": "true"
+      },
       "cordova-plugin-network-information": {},
       "cordova-plugin-secure-storage": {},
-      "cordova-plugin-device": {},
-      "cordova-plugin-android-permissions": {},
-      "cordova-plugin-background-mode": {}
+      "cordova-plugin-statusbar": {}
     }
   }
 }

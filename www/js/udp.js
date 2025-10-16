@@ -1,7 +1,9 @@
-function setupUIHandlers() {
-    document.getElementById('start-btn').addEventListener('click', startUDPListener);
-    document.getElementById('stop-btn').addEventListener('click', stopUDPListener);
-}
+// ������������
+const UDP_CONFIG = {
+    port: 14550,
+    address: '0.0.0.0',
+    bufferSize: 1024
+};
 
 let udpSocketId = null;
 
@@ -30,11 +32,7 @@ function startUDPListener() {
             
             logMessage(`✅ Listening on UDP ${UDP_CONFIG.address}:${UDP_CONFIG.port}`);
             updateUDPStatus('Listening');
-            
-            // Обновляем UI
-            document.getElementById('start-btn').disabled = true;
-            document.getElementById('stop-btn').disabled = false;
-            
+                       
             // Устанавливаем размер буфера
             chrome.sockets.udp.setPaused(udpSocketId, false, function() {
                 logMessage('✅ UDP receiver activated');
@@ -85,9 +83,6 @@ function stopUDPListener() {
 function cleanupSocket() {
     udpSocketId = null;
     updateUDPStatus('Disconnected');
-    //document.getElementById('socket-id').textContent = '--';
-    document.getElementById('start-btn').disabled = false;
-    document.getElementById('stop-btn').disabled = true;
 }
 
 function updateUDPStatus(status) {

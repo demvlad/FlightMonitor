@@ -1,25 +1,24 @@
 //MAVLink
-let mavlinkParser = null;
+let mavlinkParser = new MAVLink20Processor();
+let flightData = new Map();
+let uiData = new Map();
+
+ /*
 function setupMAVLinkHandlers() {
     // Инициализируем MAVLink 2.0 парсер
-    mavlinkParser = new MAVLink20Processor();
+    mavlinkParser =
     // HEARTBEAT
     mavlinkParser.on('HEARTBEAT', function(message) {
-        messageCount++;
-//      updateMessageCount();
-        logMessage(`💓 Heartbeat SYS:${message.sysid} COMP:${message.compid} Type:${getMAVTypeName(message.type)}`);
         updateHeartbeatDisplay(message);
     });
 
     // GPS данные
     mavlinkParser.on('GPS_RAW_INT', function(message) {
-        logMessage(`📍 GPS Fix:${getGPSFixType(message.fix_type)} Sats:${message.satellites_visible}`);
         updateGPSDisplay(message);
     });
 
     // Статус системы
     mavlinkParser.on('SYS_STATUS', function(message) {
-        logMessage(`🔋 System: ${message.voltage_battery / 1000}V ${message.battery_remaining || '--'}%`);
         updateBatteryDisplay(message);
     });
 
@@ -28,121 +27,47 @@ function setupMAVLinkHandlers() {
         logMessage(`✈️ Attitude R:${radiansToDegrees(message.roll).toFixed(1)}° P:${radiansToDegrees(message.pitch).toFixed(1)}°`);
         updateAttitudeDisplay(message);
     });
-
-    // Полетные данные
-    mavlinkParser.on('VFR_HUD', function(message) {
-        logMessage(`🛩️ Airspeed: ${message.airspeed.toFixed(1)}m/s Ground: ${message.groundspeed.toFixed(1)}m/s`);
-        updateVFRDisplay(message);
-    });
-
-    // BATTERY_STATUS (MAVLink 2.0)
-    mavlinkParser.on('BATTERY_STATUS', function(message) {
-        logMessage(`🔋 Battery ${message.id}: ${message.battery_remaining}%`);
-        updateBatteryStatusDisplay(message);
-    });
-
-    // Все сообщения для отладки
-    mavlinkParser.on('message', function(message) {
-        // console.log('MAVLink:', message.name);
-    });
 }
+*/
 
+function shouldProcessPacket(parsed) {
+    const allowedTypes = [
+        'GPS_RAW_INT',
+        'SYS_STATUS',
+        'ATTITUDE',
+    ];
+
+    return allowedTypes.includes(parsed.messageType)
+}
 
 function handleMAVLinkData(arrayBuffer) {
     if (!mavlinkParser) return;
-    
+
     try {
         // Конвертируем ArrayBuffer в Uint8Array
         const uint8Array = new Uint8Array(arrayBuffer);
-        
+
         // Парсим MAVLink сообщения
         const messages = mavlinkParser.parseBuffer(uint8Array);
-        
-        // Сообщения автоматически обрабатываются через event handlers
-        
+        for (const mavMessage of messages) {
+            if (shouldProcessPacket(mavMessage)) {
+                for (const [key, value] of Object.entries(mavMessage)) {
+                    flightData.set(key, value);
+                }
+            }
+        }
     } catch (error) {
         console.error('MAVLink parsing error:', error);
-        logMessage('❌ MAVLink parsing error');
+        logMessage(error);
     }
 }
 
-function addToTelemetryBuffer(message) {
-    // Фильтруем только важные сообщения
-    const importantMessages = ['HEARTBEAT', 'GPS_RAW_INT', 'ATTITUDE', 'VFR_HUD', 'SYS_STATUS', 'BATTERY_STATUS'];
-    
-    if (importantMessages.includes(message.name)) {
-        telemetryBuffer.push({
-            type: message.name,
-            timestamp: Date.now(),
-            data: message,
-            systemId: message.sysid
-        });
-        
-        // Ограничиваем размер буфера
-        if (telemetryBuffer.length > 1000) {
-            telemetryBuffer.shift();
-        }
-        
-        //updateBufferDisplay();
-    }
+function getUIData() {
+    return Object.fromEntries(uiData);
 }
 
-
-// Функции обновления отображения
-function updateHeartbeatDisplay(message) {
-    const element = document.getElementById('heartbeat-display');
-    if (element) {
-        element.innerHTML = `
-            💓 Система ${message.sysid} | 
-            Тип: ${getMAVTypeName(message.type)} | 
-            Статус: ${getSystemStatusName(message.system_status)}
-        `;
-    }
-}
-
-function updateGPSDisplay(message) {
-    const element = document.getElementById('gps-display');
-    if (element) {
-        element.innerHTML = `
-            📍 Фикс: ${getGPSFixType(message.fix_type)} | 
-            Спутников: ${message.satellites_visible} | 
-            Широта: ${(message.lat / 1e7).toFixed(6)} | 
-            Долгота: ${(message.lon / 1e7).toFixed(6)}
-        `;
-    }
-}
-
-function updateBatteryDisplay(message) {
-    const element = document.getElementById('battery-display');
-    if (element) {
-        element.innerHTML = `
-            🔋 ${message.voltage_battery / 1000}В | 
-            ${message.current_battery / 100}А | 
-            ${message.battery_remaining || '--'}%
-        `;
-    }
-}
-
-function updateAttitudeDisplay(message) {
-    const element = document.getElementById('attitude-display');
-    if (element) {
-        element.innerHTML = `
-            ✈️ Крен: ${radiansToDegrees(message.roll).toFixed(1)}° | 
-            Тангаж: ${radiansToDegrees(message.pitch).toFixed(1)}° | 
-            Рыскание: ${radiansToDegrees(message.yaw).toFixed(1)}°
-        `;
-    }
-}
-
-function updateVFRDisplay(message) {
-    const element = document.getElementById('vfr-display');
-    if (element) {
-        element.innerHTML = `
-            🛩️ Воздушная: ${message.airspeed.toFixed(1)}м/с | 
-            Земная: ${message.groundspeed.toFixed(1)}м/с | 
-            Высота: ${message.alt.toFixed(1)}м
-        `;
-    }
+function updateUIData() {
+    uiData = new Map(flightData);
 }
 
 function radiansToDegrees(radians) {
@@ -153,7 +78,7 @@ function radiansToDegrees(radians) {
 function getMAVTypeName(type) {
     const types = {
         0: 'Generic',
-        1: 'Fixed Wing', 
+        1: 'Fixed Wing',
         2: 'Quadrotor',
         3: 'Coaxial',
         4: 'Helicopter',
@@ -178,7 +103,7 @@ function getSystemStatusName(status) {
         0: 'Uninit',
         1: 'Booting',
         2: 'Calibrating',
-        3: 'Standby', 
+        3: 'Standby',
         4: 'Active',
         5: 'Critical',
         6: 'Emergency',
@@ -188,31 +113,19 @@ function getSystemStatusName(status) {
 }
 
 function updateBatteryStatusDisplay(message) {
-    const element = document.getElementById('battery-status');
-    if (element) {
+/*
         const voltages = message.voltages.slice(0, 4).filter(v => v !== 65535);
-        const avgVoltage = voltages.length > 0 ? 
+        const avgVoltage = voltages.length > 0 ?
             voltages.reduce((a, b) => a + b) / voltages.length / 1000 : 0;
-            
+
         element.innerHTML = `
-            Battery ${message.id}: ${avgVoltage.toFixed(2)}V | 
-            Temp: ${message.temperature}C | 
+            Battery ${message.id}: ${avgVoltage.toFixed(2)}V |
+            Temp: ${message.temperature}C |
             Current: ${(message.current_battery / 100).toFixed(1)}A
         `;
-    }
+*/
 }
 
-function updateQuaternionDisplay(message) {
-    const euler = quaternionToEuler(message.q1, message.q2, message.q3, message.q4);
-    const element = document.getElementById('attitude-quaternion');
-    if (element) {
-        element.innerHTML = `
-            Roll: ${euler.roll.toFixed(1)}� | 
-            Pitch: ${euler.pitch.toFixed(1)}� | 
-            Yaw: ${euler.yaw.toFixed(1)}�
-        `;
-    }
-}
 
 function getMAVTypeName(type) {
     const types = {
