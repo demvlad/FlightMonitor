@@ -476,27 +476,21 @@
             element.textContent = '--';
         }
 }
-/*
+
         document.addEventListener('DOMContentLoaded', () => {
             window.app = new MAVLinkApp();
         });
-*/
+
         document.addEventListener('deviceready', function() {
             console.log('Cordova готов');
             window.app = new MAVLinkApp();
         }, false);
 
 
-
-
-
-
-
-
-// Для отладки в браузере
-if (typeof cordova === 'undefined') {
-    window.app = new MAVLinkApp();
-}
+    // Для отладки в браузере
+    if (typeof cordova === 'undefined') {
+        window.app = new MAVLinkApp();
+    }
 
 
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>MAVLink Ground Station</title>
-    
+
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="css/index.css">
@@ -151,18 +151,6 @@
                     <button class="btn" onclick="toggleAutoScroll()">Автопрокрутка: Вкл</button>
                 </div>
                 <div class="log-content" id="log-content">
-                    <div class="log-entry">
-                        <span class="log-timestamp">[2024-01-15 10:00:00]</span>
-                        <span class="log-info">Система инициализирована</span>
-                    </div>
-                    <div class="log-entry">
-                        <span class="log-timestamp">[2024-01-15 10:00:01]</span>
-                        <span class="log-success">UDP сокет создан на порту 14550</span>
-                    </div>
-                    <div class="log-entry">
-                        <span class="log-timestamp">[2024-01-15 10:00:05]</span>
-                        <span class="log-warning">Ожидание подключения к БПЛА...</span>
-                    </div>
                 </div>
             </div>
         </div>
@@ -186,34 +174,33 @@
                 this.trackLayer = null;
                 this.followDrone = false;
                 this.autoScroll = true;
-                
+
                 this.isCordova = typeof window.cordova !== 'undefined';
-                
+
                 this.init();
             }
-            
+
             init() {
                 document.querySelectorAll('.tab-btn').forEach(btn => {
                     btn.addEventListener('click', () => {
                         this.switchTab(btn.dataset.tab);
                     });
                 });
-                
+
                 document.getElementById('login-btn').addEventListener('click', () => {
                     this.handleLogin();
                 });
-                
+
                 this.loadSavedData();
                 this.initMap();
                 this.getUserLocation();
                 this.startMAVLinkConnection();
-                
                 // Cordova специфичные настройки
                 if (this.isCordova) {
                     this.setupCordovaEvents();
                 }
             }
-            
+
             setupCordovaEvents() {
                 // Пауза при сворачивании приложения
                 document.addEventListener('pause', () => {
@@ -241,19 +228,23 @@
                     this.switchTab('map-tab');
                 }
             }
-            
+
             initMap() {
+                if (typeof L === "undefined") {
+                    this.addLog('Map is not loaded', 'error');
+                    return;
+                }
                 this.map = L.map('map').setView([55.7558, 37.6173], 13);
-                
+
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                     attribution: '© OpenStreetMap contributors'
                 }).addTo(this.map);
-                
+
                 this.trackLayer = L.layerGroup().addTo(this.map);
-                
+
                 this.addLog('Карта инициализирована', 'success');
             }
-            
+
             getUserLocation() {
                 if (this.isCordova) {
                     // Используем Cordova Geolocation API
@@ -327,7 +318,7 @@
                     );
                 }
             }
-            
+
             updateUserMarker() {
                 if (!this.userPosition || typeof L === "undefined") return;
 
@@ -349,10 +340,11 @@
                 this.updateUserPositionDisplay();
             }
 
-            
+
             updateDronePosition(lat, lng) {
                 this.dronePosition = { lat, lng };
-                
+                if (typeof L === "undefined") return;
+
                 if (!this.droneMarker) {
                     this.droneMarker = L.marker([lat, lng], {
                         icon: L.divIcon({
@@ -362,71 +354,71 @@
                             iconAnchor: [15, 15]
                         })
                     }).addTo(this.map);
-                    
+
                     this.droneMarker.bindPopup("<b>Квадрокоптер</b>");
                 } else {
                     this.droneMarker.setLatLng([lat, lng]);
                 }
-                
+
                 L.circleMarker([lat, lng], {
                     radius: 2,
                     color: '#ff4444',
                     fillColor: '#ff4444',
                     fillOpacity: 0.7
                 }).addTo(this.trackLayer);
-                
+
                 if (this.followDrone) {
                     this.map.setView([lat, lng], this.map.getZoom());
                 }
-                
+
                 this.updateDronePositionDisplay();
                 this.calculateDistance();
             }
-            
+
             updateUserPositionDisplay() {
                 if (this.userPosition) {
-                    document.getElementById('param-my-pos').textContent = 
+                    document.getElementById('param-my-pos').textContent =
                         `${this.userPosition.lat.toFixed(6)}, ${this.userPosition.lng.toFixed(6)}`;
                 }
             }
-            
+
             updateDronePositionDisplay() {
                 if (this.dronePosition) {
-                    document.getElementById('param-drone-pos').textContent = 
+                    document.getElementById('param-drone-pos').textContent =
                         `${this.dronePosition.lat.toFixed(6)}, ${this.dronePosition.lng.toFixed(6)}`;
                 }
             }
-            
+
             calculateDistance() {
                 if (this.userPosition && this.dronePosition) {
                     const R = 6371;
                     const dLat = (this.dronePosition.lat - this.userPosition.lat) * Math.PI / 180;
                     const dLon = (this.dronePosition.lng - this.userPosition.lng) * Math.PI / 180;
-                    const a = 
+                    const a =
                         Math.sin(dLat/2) * Math.sin(dLat/2) +
-                        Math.cos(this.userPosition.lat * Math.PI / 180) * Math.cos(this.dronePosition.lat * Math.PI / 180) * 
+                        Math.cos(this.userPosition.lat * Math.PI / 180) * Math.cos(this.dronePosition.lat * Math.PI / 180) *
                         Math.sin(dLon/2) * Math.sin(dLon/2);
                     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
                     const distance = R * c;
-                    
+
                     document.getElementById('param-distance').textContent = distance.toFixed(2) + ' км';
-                    
+
                     const y = Math.sin(dLon) * Math.cos(this.dronePosition.lat * Math.PI / 180);
                     const x = Math.cos(this.userPosition.lat * Math.PI / 180) * Math.sin(this.dronePosition.lat * Math.PI / 180) -
                               Math.sin(this.userPosition.lat * Math.PI / 180) * Math.cos(this.dronePosition.lat * Math.PI / 180) * Math.cos(dLon);
                     const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-                    
+
                     const directions = ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'];
                     const index = Math.round(bearing / 45) % 8;
                     document.getElementById('param-direction').textContent = directions[index] + ` (${Math.round(bearing)}°)`;
                 }
             }
-            
+
             startMAVLinkConnection() {
                 this.initUDPConnection();
                 this.startUIUpdateLoop();
             }
-            
+
             initUDPConnection() {
                 startUDPListener();
             }
@@ -440,7 +432,7 @@
                 // Восстановление UDP соединения
                 startUDPListener();
             }
-            
+
             startUIUpdateLoop() {
                 setInterval(() => {
                     updateUIData();
@@ -451,19 +443,19 @@
             renderUI() {
                 const data = getUIData();
                 this.updateDronePosition(data.lat ?? 0, data.lon ?? 0);
-                   
+
                 updateElement('param-lat', data.lat, v => (v / 1e7).toFixed(6));
                 updateElement('param-lon', data.lon, v => (v / 1e7).toFixed(6));
                 updateElement('param-alt', data.alt, v => (v / 1e3).toFixed(1));
                 updateElement("param-sats", data.satellites_visible);
                 updateElement("param-speed", data.vel, v => (v / 1e2).toFixed(1) + ' m/s');
-                
+
                 updateElement("param-yaw", data.yaw, v => radiansToDegrees(v).toFixed(0) + '°');
                 updateElement("param-pitch", data.pitch, v => radiansToDegrees(v).toFixed(1) + '°');
                 updateElement("param-roll", data.roll, v => radiansToDegrees(v).toFixed(1) + '°');
 
 //              document.getElementById('param-mode').textContent = mockData.mode;
-                
+
 //              updateElement("fixType", data.fix_type, getGPSFixType);
 //              updateElement("craftType", data.type, getMAVTypeName);
 
@@ -471,7 +463,7 @@
                 updateElement("param-current", data.current_battery, v => (v / 1e2).toFixed(1) + 'A');
                 updateElement("param-battery", data.battery_remaining, v => v  + '%');
             }
-            
+
             switchTab(tabId) {
                 document.querySelectorAll('.tab-content').forEach(tab => {
                     tab.classList.remove('active');
@@ -479,14 +471,14 @@
                 document.querySelectorAll('.tab-btn').forEach(btn => {
                     btn.classList.remove('active');
                 });
-                
+
                 document.getElementById(tabId).classList.add('active');
                 document.querySelector(`[data-tab="${tabId}"]`).classList.add('active');
-                
+
                 this.currentTab = tabId;
                 this.onTabChange(tabId);
             }
-            
+
             onTabChange(tabId) {
                 switch(tabId) {
                     case 'map-tab':
@@ -497,57 +489,49 @@
                         }, 100);
                         break;
                     case 'params-tab':
-                        this.updateParameters();
+                        this.renderUI();
                         break;
                 }
             }
-            
+
             handleLogin() {
                 const login = document.getElementById('login-input').value;
                 const password = document.getElementById('password-input').value;
                 const server = document.getElementById('server-input').value;
-                
+
                 if (!login || !password) {
                     this.addLog('Ошибка: Заполните все поля', 'error');
                     return;
                 }
-                
+
                 this.addLog(`Попытка авторизации: ${login}@${server}`, 'info');
-                
+
                 localStorage.setItem('mavlink-login', login);
                 localStorage.setItem('mavlink-server', server);
-                
+
                 setTimeout(() => {
                     this.addLog('Авторизация успешна!', 'success');
                     this.addLog('Подключение к БПЛА...', 'info');
-                    
+
                     setTimeout(() => {
                         this.switchTab('map-tab');
                     }, 1000);
                 }, 1500);
             }
-            
+
             addLog(message, type = 'info') {
                 const logContent = document.getElementById('log-content');
-                const timestamp = new Date().toLocaleString('ru-RU');
-                const logEntry = document.createElement('div');
-                logEntry.className = 'log-entry';
-                logEntry.innerHTML = `
-                    <span class="log-timestamp">[${timestamp}]</span>
-                    <span class="log-${type}">${message}</span>
-                `;
-                
-                logContent.appendChild(logEntry);
-                
+                logMessage(message, type);
+
                 if (this.autoScroll) {
                     logContent.scrollTop = logContent.scrollHeight;
                 }
             }
-            
+
             loadSavedData() {
                 const savedLogin = localStorage.getItem('mavlink-login');
                 const savedServer = localStorage.getItem('mavlink-server');
-                
+
                 if (savedLogin) {
                     document.getElementById('login-input').value = savedLogin;
                 }
@@ -558,14 +542,14 @@
         }
 
         function centerOnDrone() {
-            if (window.app.dronePosition) {
+            if (window.app.dronePosition && window.app.map) {
                 window.app.map.setView([window.app.dronePosition.lat, window.app.dronePosition.lng]);
                 window.app.addLog('Карта отцентрирована на квадрокоптере', 'info');
             }
         }
 
         function centerOnUser() {
-            if (window.app.userPosition) {
+            if (window.app.userPosition && window.app.map) {
                 window.app.map.setView([window.app.userPosition.lat, window.app.userPosition.lng]);
                 window.app.addLog('Карта отцентрирована на вашем местоположении', 'info');
             }
@@ -600,15 +584,25 @@
             btn.textContent = `Автопрокрутка: ${window.app.autoScroll ? 'Вкл' : 'Выкл'}`;
             window.app.addLog(`Автопрокрутка: ${window.app.autoScroll ? 'включена' : 'выключена'}`, 'info');
         }
-        
-        function logMessage(text) {
-            console.log(text);
+
+        function logMessage(message, type = 'info') {
+            const logContent = document.getElementById('log-content');
+                const timestamp = new Date().toLocaleString('ru-RU');
+                const logEntry = document.createElement('div');
+                logEntry.className = 'log-entry';
+                logEntry.innerHTML = `
+                    <span class="log-timestamp">[${timestamp}]</span>
+                    <span class="log-${type}">${message}</span>
+                `;
+
+                logContent.appendChild(logEntry);
+            console.log(message);
         }
-        
+
         function updateElement(elementId, value, formatter = null) {
             const element = document.getElementById(elementId);
             if (!element) return;
-            
+
             if(typeof value === 'function') {
                 element.textContent = value();
             } else if (value != null && value !== undefined) {
@@ -623,10 +617,10 @@
             window.app.addLog('Cordova device ready', 'success');
             //checkPermissions();
         }, false);
-        
+
     function checkPermissions() {
         const permissions = cordova.plugins.permissions;
-        
+
         // Список необходимых разрешений
         const permissionList = [
             permissions.ACCESS_FINE_LOCATION,
@@ -654,7 +648,13 @@
             }
         });
     }
-    
+
+/*
+    document.addEventListener('DOMContentLoaded', () => {
+        window.app = new MAVLinkApp();
+    });
+*/
+
     // Для отладки в браузере
     if (typeof cordova === 'undefined') {
         window.app = new MAVLinkApp();

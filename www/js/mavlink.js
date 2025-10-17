@@ -35,9 +35,13 @@ function shouldProcessPacket(parsed) {
         'GPS_RAW_INT',
         'SYS_STATUS',
         'ATTITUDE',
+        'HEARTBEAT',
+        'BATTERY_STATUS',
+        'VFR_HUD',
+        'RC_CHANNELS_RAW',
     ];
 
-    return allowedTypes.includes(parsed.messageType)
+    return allowedTypes.includes(parsed.name)
 }
 
 function handleMAVLinkData(arrayBuffer) {
